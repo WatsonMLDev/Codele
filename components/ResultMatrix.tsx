@@ -1,7 +1,7 @@
 import React from 'react';
 import { Attempt, TestCase, TestStatus } from '../types';
 import { MAX_ATTEMPTS } from '../constants';
-import { AlertTriangle, Check, X, Clock } from 'lucide-react';
+import { AlertTriangle, Check, X, Clock, AlignLeft } from 'lucide-react';
 
 interface ResultMatrixProps {
   attempts: Attempt[];
@@ -12,17 +12,20 @@ interface ResultMatrixProps {
 interface ResultCellProps {
   status: TestStatus;
   hint?: string;
-  isPerf?: boolean;
+  isConciseness?: boolean;
+  isLastColumn?: boolean;
 }
 
-const StatusIcon = ({ status }: { status: TestStatus }) => {
+const StatusIcon = ({ status, isConciseness }: { status: TestStatus; isConciseness?: boolean }) => {
   switch (status) {
     case 'PASS':
       return <Check className="w-5 h-5 text-white" />;
     case 'FAIL':
       return <X className="w-5 h-5 text-white" />;
     case 'WARN':
-      return <Clock className="w-5 h-5 text-yellow-900" />; // Darker icon for contrast on yellow bg
+      // Use different icon for conciseness warning if desired, or generic clock/alert
+      if (isConciseness) return <AlignLeft className="w-5 h-5 text-yellow-900" />;
+      return <Clock className="w-5 h-5 text-yellow-900" />;
     case 'ERROR':
       return <AlertTriangle className="w-5 h-5 text-red-200" />;
     case 'PENDING':
@@ -32,7 +35,7 @@ const StatusIcon = ({ status }: { status: TestStatus }) => {
   }
 };
 
-const ResultCell: React.FC<ResultCellProps> = ({ status, hint, isPerf }) => {
+const ResultCell: React.FC<ResultCellProps> = ({ status, hint, isConciseness, isLastColumn }) => {
   // Determine cell styling based on status
   let bgClass = 'bg-gray-800 border-gray-700';
   let borderClass = 'border-gray-700';
@@ -49,26 +52,35 @@ const ResultCell: React.FC<ResultCellProps> = ({ status, hint, isPerf }) => {
     bgClass = 'bg-gray-700 border-gray-600';
   }
 
+  // Tooltip positioning logic
+  // If last column, anchor right to prevent overflow. Otherwise center.
+  const tooltipPositionClass = isLastColumn 
+    ? "right-0 translate-x-0" 
+    : "left-1/2 -translate-x-1/2";
+    
+  const arrowPositionClass = isLastColumn
+    ? "right-4"
+    : "left-1/2 -translate-x-1/2";
+
   return (
     <div className="relative group">
       <div
         className={`w-full aspect-square border-2 rounded-md flex items-center justify-center transition-all duration-300 ${bgClass} ${borderClass}`}
       >
-        <StatusIcon status={status} />
+        <StatusIcon status={status} isConciseness={isConciseness} />
       </div>
       
       {/* Tooltip for Errors/Warnings */}
       {(status === 'FAIL' || status === 'WARN' || status === 'ERROR') && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-xl text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none break-words">
+        <div className={`absolute z-50 top-full ${tooltipPositionClass} mt-2 w-56 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-xl text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none break-words`}>
             <div className="font-bold mb-1 flex items-center gap-2">
-                {status === 'WARN' ? 'Performance Warning' : (status === 'ERROR' ? 'Runtime Error' : 'Test Failed')}
+                {status === 'WARN' 
+                    ? (isConciseness ? 'Conciseness Check' : 'Warning') 
+                    : (status === 'ERROR' ? 'Runtime Error' : 'Test Failed')}
             </div>
             <p className="font-mono text-[10px] leading-relaxed opacity-90">{hint || "Unknown error occurred"}</p>
-            {isPerf && status === 'WARN' && (
-                <p className="mt-1 text-yellow-300 font-mono">Target: O(n)</p>
-            )}
-            {/* Tooltip Arrow */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
+            {/* Tooltip Arrow (pointing up, attached to top of tooltip) */}
+            <div className={`absolute bottom-full ${arrowPositionClass} border-8 border-transparent border-b-gray-900`}></div>
         </div>
       )}
     </div>
@@ -91,6 +103,7 @@ const ResultMatrix: React.FC<ResultMatrixProps> = ({ attempts, testCases, isRunn
       let status: TestStatus = 'EMPTY';
       let hint = tc.hint;
       let message = '';
+      const isLast = idx === testCases.length - 1;
 
       if (attempt) {
         const result = attempt.results[idx];
@@ -110,7 +123,8 @@ const ResultMatrix: React.FC<ResultMatrixProps> = ({ attempts, testCases, isRunn
             key={`${i}-${tc.id}`} 
             status={status} 
             hint={hint}
-            isPerf={tc.type === 'performance'}
+            isConciseness={tc.type === 'conciseness'}
+            isLastColumn={isLast}
         />
       );
     });
@@ -131,7 +145,7 @@ const ResultMatrix: React.FC<ResultMatrixProps> = ({ attempts, testCases, isRunn
         <div>Edge</div>
         <div>Logic</div>
         <div>Logic</div>
-        <div className="text-yellow-500 font-bold">Perf</div>
+        <div className="text-yellow-500 font-bold">Lines</div>
       </div>
       {rows}
     </div>

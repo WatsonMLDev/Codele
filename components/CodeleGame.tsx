@@ -145,10 +145,17 @@ interface ResultsPanelProps {
 
 const ResultsPanel = memo(({ attempts, testCases, isRunning, gameState, isMobile, actionProps }: ResultsPanelProps) => (
   <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
-      <div className="flex-none p-4 border-b border-gray-800 bg-gray-900/95 backdrop-blur">
+      <div className="flex-none p-4 border-b border-gray-800 bg-gray-900/95 backdrop-blur flex items-center justify-between">
            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
               <Activity className="w-4 h-4" /> Test Results
            </h3>
+           
+           <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
+                <span className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold">Attempts</span>
+                <span className={`text-xs font-mono font-bold ${attempts.length >= MAX_ATTEMPTS - 1 ? 'text-red-400' : 'text-white'}`}>
+                    {attempts.length}/{MAX_ATTEMPTS}
+                </span>
+           </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -276,17 +283,11 @@ const CodeleGame: React.FC = () => {
     if (isMobile) setActiveTab('results');
 
     try {
+      // Execute Code via Pyodide
       const rawResults: TestResult[] = await runCode(code, problem.testCases);
       
-      const processedResults = rawResults.map(r => {
-        const definition = problem.testCases.find(tc => tc.id === r.caseId);
-        if (definition?.type === 'performance' && r.status === 'PASS') {
-             if ((r.durationMs || 0) > 2000) {
-                 return { ...r, status: 'WARN' as const, message: `Correct logic, but too slow (${Math.round(r.durationMs || 0)}ms). Target: <2000ms.` };
-             }
-        }
-        return r;
-      });
+      // All post-processing is now done in Worker (including conciseness checks)
+      const processedResults = rawResults;
 
       const newAttempt: Attempt = {
         id: Date.now().toString(),
@@ -449,14 +450,7 @@ const CodeleGame: React.FC = () => {
             <h1 className="text-lg md:text-xl font-bold tracking-tight text-white hidden md:block">Codele</h1>
             <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">Daily Challenge</span>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-             <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
-                <span className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Attempts</span>
-                <span className={`font-mono font-bold ${attempts.length >= MAX_ATTEMPTS - 1 ? 'text-red-400' : 'text-white'}`}>
-                    {attempts.length}/{MAX_ATTEMPTS}
-                </span>
-             </div>
-        </div>
+        {/* Removed Attempts Counter from here */}
       </header>
 
       <main className="flex-1 relative overflow-hidden">

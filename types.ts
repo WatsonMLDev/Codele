@@ -2,7 +2,7 @@ export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 export interface TestCase {
   id: number;
-  type: 'basic' | 'edge' | 'logic' | 'performance';
+  type: 'basic' | 'edge' | 'logic' | 'conciseness' | 'performance';
   hint: string;
   input: string; // JSON string representation of arguments
   expected: string; // JSON string representation of expected return value

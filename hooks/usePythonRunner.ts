@@ -28,6 +28,31 @@ self.onmessage = async (event) => {
 
     // 3. Run Test Cases
     for (const test of testCases) {
+        // Conciseness Check
+        if (test.type === 'conciseness') {
+             // Measure visual length: count all lines including internal blank lines.
+             // trim() ignores trailing/leading newlines of the file itself.
+             const trimmed = code.trim();
+             const lines = trimmed === '' ? 0 : trimmed.split('\\n').length;
+             const limit = parseInt(test.expected);
+             
+             let status = 'PASS';
+             let message = \`Concise! (\${lines} lines)\`;
+             
+             if (lines > limit) {
+                 status = 'WARN';
+                 message = \`Used \${lines} lines. Target: \${limit}.\`;
+             }
+             
+             results.push({
+                 caseId: test.id,
+                 status,
+                 message,
+                 durationMs: 0
+             });
+             continue;
+        }
+
         const input = JSON.parse(test.input);
         const expected = JSON.parse(test.expected);
         
