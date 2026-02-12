@@ -23,6 +23,8 @@ const StatusIcon = ({ status }: { status: TestStatus }) => {
       return <X className="w-5 h-5 text-white" />;
     case 'WARN':
       return <Clock className="w-5 h-5 text-yellow-900" />; // Darker icon for contrast on yellow bg
+    case 'ERROR':
+      return <AlertTriangle className="w-5 h-5 text-red-200" />;
     case 'PENDING':
       return <div className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin" />;
     default:
@@ -41,6 +43,8 @@ const ResultCell: React.FC<ResultCellProps> = ({ status, hint, isPerf }) => {
     bgClass = 'bg-red-500 border-red-600';
   } else if (status === 'WARN') {
     bgClass = 'bg-yellow-400 border-yellow-500';
+  } else if (status === 'ERROR') {
+    bgClass = 'bg-red-900 border-red-800'; // Dark red for Syntax/Runtime Errors
   } else if (status === 'PENDING') {
     bgClass = 'bg-gray-700 border-gray-600';
   }
@@ -54,12 +58,12 @@ const ResultCell: React.FC<ResultCellProps> = ({ status, hint, isPerf }) => {
       </div>
       
       {/* Tooltip for Errors/Warnings */}
-      {(status === 'FAIL' || status === 'WARN') && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-xl text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="font-bold mb-1">
-                {status === 'WARN' ? 'Performance Warning' : 'Test Failed'}
+      {(status === 'FAIL' || status === 'WARN' || status === 'ERROR') && (
+        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-xl text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none break-words">
+            <div className="font-bold mb-1 flex items-center gap-2">
+                {status === 'WARN' ? 'Performance Warning' : (status === 'ERROR' ? 'Runtime Error' : 'Test Failed')}
             </div>
-            <p>{hint || "Unknown error occurred"}</p>
+            <p className="font-mono text-[10px] leading-relaxed opacity-90">{hint || "Unknown error occurred"}</p>
             {isPerf && status === 'WARN' && (
                 <p className="mt-1 text-yellow-300 font-mono">Target: O(n)</p>
             )}
@@ -86,9 +90,17 @@ const ResultMatrix: React.FC<ResultMatrixProps> = ({ attempts, testCases, isRunn
     const cells = testCases.map((tc, idx) => {
       let status: TestStatus = 'EMPTY';
       let hint = tc.hint;
+      let message = '';
 
       if (attempt) {
-        status = attempt.results[idx]?.status || 'EMPTY';
+        const result = attempt.results[idx];
+        if (result) {
+            status = result.status;
+            // For ERROR/FAIL/WARN, prefer the specific result message (from python runner) over the generic hint
+            if (result.message && (status === 'ERROR' || status === 'FAIL' || status === 'WARN')) {
+                hint = result.message;
+            }
+        }
       } else if (isCurrentLoadingRow) {
         status = 'PENDING';
       }

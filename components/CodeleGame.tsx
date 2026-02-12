@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar, Loader2 } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import ResultMatrix from './ResultMatrix';
-import { DAILY_PROBLEM, MAX_ATTEMPTS } from '../constants';
+import { MAX_ATTEMPTS } from '../constants';
+import { ProblemService } from '../services/ProblemService';
 import { usePythonRunner } from '../hooks/usePythonRunner';
 import { Attempt, TestResult, DailyProblem } from '../types';
 
@@ -19,7 +20,6 @@ const getDifficultyColor = (diff: string) => {
 
 const parseMarkdown = (text: string) => {
   // Simple markdown parser for description
-  // Strategy: Split by code blocks first
   const parts = text.split(/(```[\s\S]*?```)/g);
   
   return parts.map((part, index) => {
@@ -30,15 +30,10 @@ const parseMarkdown = (text: string) => {
     } else {
       // Regular Text
       let html = part
-        // Escape HTML to prevent injection (basic)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        // Bold
         .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-        // Inline Code
         .replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-1.5 py-0.5 rounded text-sm font-mono text-indigo-200 border border-gray-700/50">$1</code>')
-        // Lists
         .replace(/^\s*-\s+(.*)$/gm, '<li class="ml-4 list-disc text-gray-300">$1</li>')
-        // Newlines
         .replace(/\n/g, '<br />');
         
       return `<span class="text-gray-300 leading-relaxed">${html}</span>`;
@@ -46,7 +41,7 @@ const parseMarkdown = (text: string) => {
   }).join('');
 };
 
-// --- Sub-Components (Defined outside to prevent re-renders) ---
+// --- Sub-Components ---
 
 const MarkdownRenderer = memo(({ content }: { content: string }) => {
   const htmlContent = parseMarkdown(content);
@@ -212,7 +207,8 @@ const useIsMobile = () => {
 
 // --- Main Component ---
 const CodeleGame: React.FC = () => {
-  const [code, setCode] = useState(DAILY_PROBLEM.starterCode);
+  const [problem, setProblem] = useState<DailyProblem | null>(null);
+  const [code, setCode] = useState("");
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [gameState, setGameState] = useState<'PLAYING' | 'WON' | 'LOST'>('PLAYING');
@@ -223,9 +219,19 @@ const CodeleGame: React.FC = () => {
   // Layout State
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<'problem' | 'code' | 'results'>('problem');
-  const [leftWidth, setLeftWidth] = useState(35); // Percentage for desktop split
+  const [leftWidth, setLeftWidth] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load Problem
+  useEffect(() => {
+    const fetchProblem = async () => {
+        const data = await ProblemService.getDailyProblem();
+        setProblem(data);
+        setCode(data.starterCode);
+    };
+    fetchProblem();
+  }, []);
 
   // Resize Logic
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -265,15 +271,15 @@ const CodeleGame: React.FC = () => {
 
   // Game Logic
   const handleRunCode = useCallback(async () => {
-    if (isRunning || gameState !== 'PLAYING') return;
+    if (isRunning || gameState !== 'PLAYING' || !problem) return;
     setIsRunning(true);
     if (isMobile) setActiveTab('results');
 
     try {
-      const rawResults: TestResult[] = await runCode(code, DAILY_PROBLEM.testCases);
+      const rawResults: TestResult[] = await runCode(code, problem.testCases);
       
       const processedResults = rawResults.map(r => {
-        const definition = DAILY_PROBLEM.testCases.find(tc => tc.id === r.caseId);
+        const definition = problem.testCases.find(tc => tc.id === r.caseId);
         if (definition?.type === 'performance' && r.status === 'PASS') {
              if ((r.durationMs || 0) > 2000) {
                  return { ...r, status: 'WARN' as const, message: `Correct logic, but too slow (${Math.round(r.durationMs || 0)}ms). Target: <2000ms.` };
@@ -303,20 +309,20 @@ const CodeleGame: React.FC = () => {
     } finally {
       setIsRunning(false);
     }
-  }, [isRunning, gameState, isMobile, runCode, code]);
+  }, [isRunning, gameState, isMobile, runCode, code, problem]);
 
   const handleReset = useCallback(() => {
-    setCode(DAILY_PROBLEM.starterCode);
-    setAttempts([]);
-    setGameState('PLAYING');
-  }, []);
+    if (problem) {
+        setCode(problem.starterCode);
+        setAttempts([]);
+        setGameState('PLAYING');
+    }
+  }, [problem]);
 
-  // Stable Handler for Code Changes
   const handleCodeChange = useCallback((val: string | undefined) => {
     setCode(val || '');
   }, []);
 
-  // Props for sub-components
   const actionProps: EditorActionPanelProps = {
     isRunning,
     gameState,
@@ -326,12 +332,22 @@ const CodeleGame: React.FC = () => {
     onReset: handleReset
   };
 
+  // --- Loading State ---
+  if (!problem) {
+    return (
+        <div className="h-screen w-full bg-gray-950 flex flex-col items-center justify-center text-gray-400 gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+            <span className="text-sm font-mono tracking-wide">Initializing Codele Challenge...</span>
+        </div>
+    );
+  }
+
   // --- Renders ---
 
   const renderMobile = () => (
     <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 relative overflow-hidden">
-            {activeTab === 'problem' && <div className="h-full overflow-hidden"><ProblemPanel problem={DAILY_PROBLEM} /></div>}
+            {activeTab === 'problem' && <div className="h-full overflow-hidden"><ProblemPanel problem={problem} /></div>}
             {activeTab === 'code' && (
                 <div className="h-full overflow-hidden">
                     <EditorPanel 
@@ -348,7 +364,7 @@ const CodeleGame: React.FC = () => {
                 <div className="h-full overflow-hidden">
                     <ResultsPanel 
                         attempts={attempts} 
-                        testCases={DAILY_PROBLEM.testCases} 
+                        testCases={problem.testCases} 
                         isRunning={isRunning} 
                         gameState={gameState} 
                         isMobile={true} 
@@ -387,7 +403,7 @@ const CodeleGame: React.FC = () => {
   const renderDesktop = () => (
     <div ref={containerRef} className="flex h-full w-full overflow-hidden">
         <div style={{ width: `${leftWidth}%` }} className="flex-none h-full min-w-[250px]">
-            <ProblemPanel problem={DAILY_PROBLEM} />
+            <ProblemPanel problem={problem} />
         </div>
 
         <div 
@@ -412,7 +428,7 @@ const CodeleGame: React.FC = () => {
             <div className="w-[320px] xl:w-[380px] h-full flex-none border-l border-gray-800">
                 <ResultsPanel 
                     attempts={attempts} 
-                    testCases={DAILY_PROBLEM.testCases} 
+                    testCases={problem.testCases} 
                     isRunning={isRunning} 
                     gameState={gameState} 
                     isMobile={false} 
