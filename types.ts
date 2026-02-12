@@ -31,3 +31,12 @@ export interface Attempt {
   timestamp: number;
   results: TestResult[];
 }
+
+export interface UserStats {
+  currentStreak: number;
+  maxStreak: number;
+  lastWinDate: string | null;
+  gamesPlayed: number;
+  gamesWon: number;
+  winDistribution: number[]; // Index 0 = 1 attempt, Index 5 = 6 attempts
+}

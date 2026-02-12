@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar, Loader2, Flame, Clock } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import ResultMatrix from './ResultMatrix';
 import { MAX_ATTEMPTS } from '../constants';
 import { ProblemService } from '../services/ProblemService';
+import { StorageService } from '../services/StorageService';
 import { usePythonRunner } from '../hooks/usePythonRunner';
-import { Attempt, TestResult, DailyProblem } from '../types';
+import { Attempt, TestResult, DailyProblem, UserStats } from '../types';
 
 // --- Helper Functions ---
 
@@ -19,16 +20,13 @@ const getDifficultyColor = (diff: string) => {
 };
 
 const parseMarkdown = (text: string) => {
-  // Simple markdown parser for description
   const parts = text.split(/(```[\s\S]*?```)/g);
   
   return parts.map((part, index) => {
     if (part.startsWith('```') && part.endsWith('```')) {
-      // Code Block
       const content = part.slice(3, -3).trim();
       return `<pre class="bg-gray-800/50 p-3 rounded-md my-3 overflow-x-auto border border-gray-700"><code class="text-sm font-mono text-gray-300">${content}</code></pre>`;
     } else {
-      // Regular Text
       let html = part
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
         .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
@@ -39,6 +37,43 @@ const parseMarkdown = (text: string) => {
       return `<span class="text-gray-300 leading-relaxed">${html}</span>`;
     }
   }).join('');
+};
+
+// --- Timer Hook ---
+
+const useTimeUntilMidnight = () => {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const calculateTime = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      
+      const diff = tomorrow.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+          setTimeLeft("00:00:00");
+          return;
+      }
+
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeLeft(
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      );
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  return timeLeft;
 };
 
 // --- Sub-Components ---
@@ -129,7 +164,6 @@ const EditorPanel = memo(({ code, onChange, gameState, isRunning, isMobile, acti
               readOnly={gameState !== 'PLAYING' || isRunning}
           />
       </div>
-      {/* On Mobile, actions are here. */}
       {isMobile && <EditorActionPanel {...actionProps} />}
   </div>
 ));
@@ -143,63 +177,79 @@ interface ResultsPanelProps {
   actionProps: EditorActionPanelProps;
 }
 
-const ResultsPanel = memo(({ attempts, testCases, isRunning, gameState, isMobile, actionProps }: ResultsPanelProps) => (
-  <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
-      <div className="flex-none p-4 border-b border-gray-800 bg-gray-900/95 backdrop-blur flex items-center justify-between">
-           <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-4 h-4" /> Test Results
-           </h3>
-           
-           <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
-                <span className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold">Attempts</span>
-                <span className={`text-xs font-mono font-bold ${attempts.length >= MAX_ATTEMPTS - 1 ? 'text-red-400' : 'text-white'}`}>
-                    {attempts.length}/{MAX_ATTEMPTS}
-                </span>
-           </div>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <ResultMatrix 
-              attempts={attempts} 
-              testCases={testCases} 
-              isRunning={isRunning}
-          />
+const ResultsPanel = memo(({ attempts, testCases, isRunning, gameState, isMobile, actionProps }: ResultsPanelProps) => {
+  const timeLeft = useTimeUntilMidnight();
 
-          <div className="mt-6 space-y-3">
-              {attempts.length === 0 && !isRunning && (
-                  <div className="p-3 rounded border border-gray-800 bg-gray-900/50 text-xs text-center text-gray-500">
-                      Write your Python solution and run tests.
+  return (
+    <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
+        <div className="flex-none p-4 border-b border-gray-800 bg-gray-900/95 backdrop-blur flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <Activity className="w-4 h-4" /> Test Results
+            </h3>
+            
+            <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
+                  <span className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold">Attempts</span>
+                  <span className={`text-xs font-mono font-bold ${attempts.length >= MAX_ATTEMPTS - 1 ? 'text-red-400' : 'text-white'}`}>
+                      {attempts.length}/{MAX_ATTEMPTS}
+                  </span>
+            </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <ResultMatrix 
+                attempts={attempts} 
+                testCases={testCases} 
+                isRunning={isRunning}
+            />
+
+            <div className="mt-6 space-y-3">
+                {attempts.length === 0 && !isRunning && (
+                    <div className="p-3 rounded border border-gray-800 bg-gray-900/50 text-xs text-center text-gray-500">
+                        Write your Python solution and run tests.
+                    </div>
+                )}
+                {isRunning && (
+                    <div className="p-3 rounded bg-indigo-900/10 border border-indigo-500/20 text-indigo-300 text-xs flex items-center justify-center gap-2">
+                        <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        Executing Python in Browser...
+                    </div>
+                )}
+                {gameState === 'WON' && (
+                    <div className="p-4 rounded bg-green-900/20 border border-green-500/30 text-green-300 text-center animate-pulse-fast">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                            <Trophy className="w-5 h-5" />
+                            <span className="font-bold text-lg">Solved!</span>
+                        </div>
+                        <p className="text-xs opacity-80">Come back tomorrow for a new challenge.</p>
+                    </div>
+                )}
+                {gameState === 'LOST' && (
+                    <div className="p-4 rounded bg-red-900/20 border border-red-500/30 text-red-300 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                            <AlertCircle className="w-5 h-5" />
+                            <span className="font-bold text-lg">Challenge Failed</span>
+                        </div>
+                        <p className="text-xs opacity-80">Better luck next time.</p>
+                    </div>
+                )}
+                
+                {/* Daily Reset Timer */}
+                {(gameState === 'WON' || gameState === 'LOST') && (
+                  <div className="mt-6 border-t border-gray-800 pt-6 text-center">
+                     <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Next Codele In</p>
+                     <div className="flex items-center justify-center gap-2 text-xl font-mono text-white font-bold">
+                        <Clock className="w-5 h-5 text-indigo-400" />
+                        {timeLeft}
+                     </div>
                   </div>
-              )}
-               {isRunning && (
-                  <div className="p-3 rounded bg-indigo-900/10 border border-indigo-500/20 text-indigo-300 text-xs flex items-center justify-center gap-2">
-                      <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                      Executing Python in Browser...
-                  </div>
-              )}
-              {gameState === 'WON' && (
-                  <div className="p-3 rounded bg-green-900/20 border border-green-500/30 text-green-300 text-center animate-pulse-fast">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                          <Trophy className="w-4 h-4" />
-                          <span className="font-bold">Solved!</span>
-                      </div>
-                  </div>
-              )}
-              {gameState === 'LOST' && (
-                  <div className="p-3 rounded bg-red-900/20 border border-red-500/30 text-red-300 text-center">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="font-bold">Failed</span>
-                      </div>
-                  </div>
-              )}
-          </div>
-      </div>
-      
-      {/* Actions at bottom for Desktop */}
-      {!isMobile && <EditorActionPanel {...actionProps} />}
-  </div>
-));
+                )}
+            </div>
+        </div>
+        
+        {!isMobile && <EditorActionPanel {...actionProps} />}
+    </div>
+  );
+});
 
 // --- Main Hook ---
 const useIsMobile = () => {
@@ -219,6 +269,7 @@ const CodeleGame: React.FC = () => {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [gameState, setGameState] = useState<'PLAYING' | 'WON' | 'LOST'>('PLAYING');
+  const [stats, setStats] = useState<UserStats>(StorageService.getStats());
   
   // Real Execution Engine
   const { runCode, isEngineReady } = usePythonRunner();
@@ -229,16 +280,53 @@ const CodeleGame: React.FC = () => {
   const [leftWidth, setLeftWidth] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Ref for previous gameState to detect changes
+  const prevGameState = useRef(gameState);
 
-  // Load Problem
+  // Load Problem and Restore State
   useEffect(() => {
-    const fetchProblem = async () => {
+    const fetchProblemAndRestore = async () => {
         const data = await ProblemService.getDailyProblem();
         setProblem(data);
-        setCode(data.starterCode);
+        
+        // Restore State from LocalStorage
+        const savedState = StorageService.loadGameState(data.id);
+        if (savedState) {
+            setCode(savedState.code);
+            setAttempts(savedState.attempts);
+            setGameState(savedState.gameState);
+        } else {
+            setCode(data.starterCode);
+        }
     };
-    fetchProblem();
+    fetchProblemAndRestore();
   }, []);
+
+  // Save State on Change
+  useEffect(() => {
+    if (!problem) return;
+    StorageService.saveGameState(problem.id, code, attempts, gameState);
+  }, [code, attempts, gameState, problem]);
+
+  // Handle Win/Loss Stats
+  useEffect(() => {
+      if (!problem) return;
+
+      // Detect transition to WON
+      if (prevGameState.current !== 'WON' && gameState === 'WON') {
+          const newStats = StorageService.updateStatsOnWin(problem.id, attempts.length);
+          setStats(newStats);
+      }
+      
+      // Detect transition to LOST
+      if (prevGameState.current !== 'LOST' && gameState === 'LOST') {
+          const newStats = StorageService.updateStatsOnLoss(problem.id);
+          setStats(newStats);
+      }
+      
+      prevGameState.current = gameState;
+  }, [gameState, problem, attempts.length]);
 
   // Resize Logic
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -283,10 +371,7 @@ const CodeleGame: React.FC = () => {
     if (isMobile) setActiveTab('results');
 
     try {
-      // Execute Code via Pyodide
       const rawResults: TestResult[] = await runCode(code, problem.testCases);
-      
-      // All post-processing is now done in Worker (including conciseness checks)
       const processedResults = rawResults;
 
       const newAttempt: Attempt = {
@@ -314,15 +399,20 @@ const CodeleGame: React.FC = () => {
 
   const handleReset = useCallback(() => {
     if (problem) {
-        setCode(problem.starterCode);
-        setAttempts([]);
-        setGameState('PLAYING');
+        // Only allow code reset if playing
+        if (gameState !== 'PLAYING') return;
+        
+        if (window.confirm("Reset code to starter template?")) {
+            setCode(problem.starterCode);
+        }
     }
-  }, [problem]);
+  }, [problem, gameState]);
 
   const handleCodeChange = useCallback((val: string | undefined) => {
-    setCode(val || '');
-  }, []);
+    if (gameState === 'PLAYING') {
+        setCode(val || '');
+    }
+  }, [gameState]);
 
   const actionProps: EditorActionPanelProps = {
     isRunning,
@@ -338,7 +428,7 @@ const CodeleGame: React.FC = () => {
     return (
         <div className="h-screen w-full bg-gray-950 flex flex-col items-center justify-center text-gray-400 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-            <span className="text-sm font-mono tracking-wide">Initializing Codele Challenge...</span>
+            <span className="text-sm font-mono tracking-wide">Initializing Codele...</span>
         </div>
     );
   }
@@ -450,7 +540,16 @@ const CodeleGame: React.FC = () => {
             <h1 className="text-lg md:text-xl font-bold tracking-tight text-white hidden md:block">Codele</h1>
             <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">Daily Challenge</span>
         </div>
-        {/* Removed Attempts Counter from here */}
+        
+        {/* Streak Indicator */}
+        <div className="flex items-center gap-4">
+             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-800 border border-gray-700 group cursor-help relative" title="Current Streak">
+                <Flame className={`w-4 h-4 ${stats.currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-gray-600'}`} />
+                <span className={`text-sm font-bold font-mono ${stats.currentStreak > 0 ? 'text-orange-100' : 'text-gray-500'}`}>
+                    {stats.currentStreak}
+                </span>
+             </div>
+        </div>
       </header>
 
       <main className="flex-1 relative overflow-hidden">
