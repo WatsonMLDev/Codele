@@ -1,6 +1,7 @@
 import { DailyProblem, WeeklyTheme, CalendarDay } from '../types';
 
-const API_BASE_URL = '/api/v1';
+// Use Vite environment variable, fallback to relative path if not set
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api/v1';
 
 const MOCK_PROBLEM: DailyProblem = {
   "title": "Peak Performance Monitor",
