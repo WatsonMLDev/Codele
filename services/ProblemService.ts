@@ -84,8 +84,8 @@ export const ProblemService = {
       }
       return await response.json();
     } catch (error) {
-       console.error("Error fetching problem by date", error);
-       throw error;
+      console.error("Error fetching problem by date", error);
+      throw error;
     }
   },
 
@@ -93,7 +93,8 @@ export const ProblemService = {
     try {
       const response = await fetch(`${API_BASE_URL}/calendar?month=${month}`);
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      return data.days || [];
     } catch (error) {
       console.error("Error fetching calendar", error);
       return [];
@@ -105,7 +106,7 @@ export const ProblemService = {
       const query = month ? `?month=${month}` : '';
       const response = await fetch(`${API_BASE_URL}/themes${query}`);
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
-      
+
       const data = await response.json();
       // Map snake_case response to camelCase interface
       return data.map((item: any) => ({

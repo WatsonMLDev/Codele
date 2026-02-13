@@ -29,7 +29,7 @@ export interface WeeklyTheme {
 export interface CalendarDay {
   date: string;
   difficulty: Difficulty;
-  exists: boolean;
+  title: string;
 }
 
 export type TestStatus = 'PASS' | 'FAIL' | 'WARN' | 'PENDING' | 'EMPTY' | 'ERROR';
