@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Star, Lock, CheckCircle2, XCircle } from 'lucide-react';
 import { ProblemService } from '../services/ProblemService';
 import { StorageService } from '../services/StorageService';
 import { CalendarDay, WeeklyTheme, Difficulty } from '../types';
-
-interface ArchiveViewProps {
-  onSelectDate: (date: string) => void;
-  onClose: () => void;
-}
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = [
@@ -33,7 +29,8 @@ const getDifficultyColor = (diff: Difficulty) => {
   }
 };
 
-const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
+const ArchiveView: React.FC = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
   const [themes, setThemes] = useState<WeeklyTheme[]>([]);
@@ -52,8 +49,8 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
           ProblemService.getCalendar(monthStr),
           ProblemService.getThemes(monthStr)
         ]);
-        setCalendarData(cal);
-        setThemes(th);
+        setCalendarData(cal || []); // Ensure array
+        setThemes(th || []); // Ensure array
       } catch (err) {
         console.error("Failed to load archive data", err);
       } finally {
@@ -115,11 +112,11 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-white overflow-hidden animate-in fade-in duration-300">
+    <div className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex-none p-6 border-b border-gray-800 flex items-center justify-between bg-gray-900/50 backdrop-blur">
+      <div className="flex-none h-16 px-6 border-b border-gray-800 flex items-center justify-between bg-gray-900/50 backdrop-blur">
         <div className="flex items-center gap-4">
-          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white">
+          <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white">
              <ChevronLeft className="w-6 h-6" />
           </button>
           <h2 className="text-2xl font-bold tracking-tight">Archive</h2>
@@ -149,17 +146,17 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto pb-10">
             
             {/* Weekday Headers */}
-            <div className="grid grid-cols-7 gap-4 mb-4">
+            <div className="grid grid-cols-7 gap-2 md:gap-4 mb-4">
                 {DAYS.map(d => (
                     <div key={d} className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest">{d}</div>
                 ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-4">
+            <div className="grid grid-cols-7 gap-2 md:gap-4">
                 {gridDays.map((cell, idx) => {
                     if (!cell) {
                         return <div key={`pad-${idx}`} className="aspect-[4/3] md:aspect-square" />;
@@ -180,9 +177,9 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
                         <button
                             key={dateStr}
                             disabled={future || !exists}
-                            onClick={() => onSelectDate(dateStr)}
+                            onClick={() => navigate(`/problem/${dateStr}`)}
                             className={`
-                                relative group flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 aspect-[4/3] md:aspect-square
+                                relative group flex flex-col justify-between p-2 md:p-3 rounded-xl border transition-all duration-200 aspect-[4/3] md:aspect-square
                                 ${future || !exists 
                                     ? 'bg-gray-900/30 border-gray-800/50 cursor-default opacity-50' 
                                     : 'bg-gray-900 border-gray-800 hover:border-indigo-500 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer'
@@ -191,15 +188,15 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
                             `}
                         >
                             {/* Header: Date & Status */}
-                            <div className="flex items-start justify-between">
-                                <span className={`text-lg font-bold font-mono ${future ? 'text-gray-700' : 'text-gray-300 group-hover:text-white'}`}>
+                            <div className="flex items-start justify-between w-full">
+                                <span className={`text-sm md:text-lg font-bold font-mono ${future ? 'text-gray-700' : 'text-gray-300 group-hover:text-white'}`}>
                                     {day}
                                 </span>
                                 
                                 {!future && exists && (
                                     <>
-                                        {status === 'WON' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                                        {status === 'LOST' && <XCircle className="w-5 h-5 text-red-500" />}
+                                        {status === 'WON' && <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-green-500" />}
+                                        {status === 'LOST' && <XCircle className="w-4 h-4 md:w-5 md:h-5 text-red-500" />}
                                         {status === 'PLAYING' && <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 mr-1.5" />}
                                     </>
                                 )}
@@ -207,7 +204,7 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
 
                             {/* Middle: Theme Indicator */}
                             {activeTheme && !future && (
-                                <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 px-2 hidden md:block">
+                                <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 px-2 hidden lg:block">
                                     <div className={`text-[10px] font-bold uppercase tracking-wide truncate text-center py-1 rounded-full ${themeColors?.text} bg-gray-950/50 backdrop-blur border border-white/5`}>
                                         {activeTheme.theme}
                                     </div>
@@ -216,16 +213,16 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
 
                             {/* Footer: Difficulty Badge */}
                             {!future && exists ? (
-                                <div className="mt-auto self-start">
+                                <div className="mt-auto self-start w-full overflow-hidden">
                                     {apiData?.difficulty && (
-                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getDifficultyColor(apiData.difficulty)}`}>
+                                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] md:text-[10px] font-bold uppercase border truncate max-w-full ${getDifficultyColor(apiData.difficulty)}`}>
                                             {apiData.difficulty}
                                         </span>
                                     )}
                                 </div>
                             ) : (
                                 <div className="mt-auto self-center text-gray-700">
-                                    {future ? <Lock className="w-4 h-4" /> : <span className="text-xs">Empty</span>}
+                                    {future ? <Lock className="w-4 h-4" /> : <span className="text-[10px] md:text-xs">Empty</span>}
                                 </div>
                             )}
                         </button>
@@ -233,8 +230,8 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ onSelectDate, onClose }) => {
                 })}
             </div>
 
-            {/* Mobile Theme Legend (since pills might hide on small screens) */}
-            <div className="mt-8 md:hidden space-y-2">
+            {/* Mobile Theme Legend */}
+            <div className="mt-8 lg:hidden space-y-2">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Themes this Month</h3>
                 {themes.map((t, i) => {
                      const colors = THEME_COLORS[i % THEME_COLORS.length];
