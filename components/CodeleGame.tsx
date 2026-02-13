@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar, Loader2, Flame, Clock } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Trophy, Terminal, FileText, Code, Activity, Calendar, Loader2, Flame, Clock, Hash, LayoutGrid, ChevronLeft } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import ResultMatrix from './ResultMatrix';
+import ArchiveView from './ArchiveView'; // Import the new component
 import { MAX_ATTEMPTS } from '../constants';
 import { ProblemService } from '../services/ProblemService';
 import { StorageService } from '../services/StorageService';
@@ -100,7 +101,18 @@ const ProblemPanel = memo(({ problem }: { problem: DailyProblem }) => (
               {problem.difficulty}
           </span>
       </div>
-      <h2 className="text-xl md:text-2xl font-semibold text-white leading-tight">{problem.title}</h2>
+      <h2 className="text-xl md:text-2xl font-semibold text-white leading-tight mb-4">{problem.title}</h2>
+      
+      {problem.topics && problem.topics.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+            {problem.topics.map((topic, i) => (
+                <div key={i} className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-medium text-indigo-300">
+                    <Hash className="w-3 h-3 opacity-50" />
+                    {topic}
+                </div>
+            ))}
+        </div>
+      )}
     </div>
     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
       <MarkdownRenderer content={problem.description} />
@@ -271,6 +283,10 @@ const CodeleGame: React.FC = () => {
   const [gameState, setGameState] = useState<'PLAYING' | 'WON' | 'LOST'>('PLAYING');
   const [stats, setStats] = useState<UserStats>(StorageService.getStats());
   
+  // New State for Archive View
+  const [showArchive, setShowArchive] = useState(false);
+  const [isLoadingProblem, setIsLoadingProblem] = useState(false);
+
   // Real Execution Engine
   const { runCode, isEngineReady } = usePythonRunner();
   
@@ -287,21 +303,44 @@ const CodeleGame: React.FC = () => {
   // Load Problem and Restore State
   useEffect(() => {
     const fetchProblemAndRestore = async () => {
+        // If we are already loading a specific problem (via archive), skip standard daily fetch
+        if (isLoadingProblem) return; 
+
         const data = await ProblemService.getDailyProblem();
-        setProblem(data);
-        
-        // Restore State from LocalStorage
-        const savedState = StorageService.loadGameState(data.id);
-        if (savedState) {
-            setCode(savedState.code);
-            setAttempts(savedState.attempts);
-            setGameState(savedState.gameState);
-        } else {
-            setCode(data.starterCode);
-        }
+        loadProblemData(data);
     };
     fetchProblemAndRestore();
-  }, []);
+  }, []); // Only run on mount (or manual re-trigger if needed)
+
+  const loadProblemData = (data: DailyProblem) => {
+    setProblem(data);
+    const savedState = StorageService.loadGameState(data.id);
+    if (savedState) {
+        setCode(savedState.code);
+        setAttempts(savedState.attempts);
+        setGameState(savedState.gameState);
+    } else {
+        setCode(data.starterCode);
+        setAttempts([]);
+        setGameState('PLAYING');
+    }
+    setIsLoadingProblem(false);
+  };
+
+  const handleSelectDateFromArchive = async (dateStr: string) => {
+    setShowArchive(false);
+    setIsLoadingProblem(true);
+    setProblem(null); // Clear current problem to show loading state
+    
+    try {
+        const data = await ProblemService.getProblemByDate(dateStr);
+        loadProblemData(data);
+    } catch (error) {
+        console.error("Failed to load archived problem", error);
+        setIsLoadingProblem(false);
+        // Error handling UI could go here
+    }
+  };
 
   // Save State on Change
   useEffect(() => {
@@ -423,12 +462,18 @@ const CodeleGame: React.FC = () => {
     onReset: handleReset
   };
 
+  // --- View Switching Logic ---
+
+  if (showArchive) {
+      return <ArchiveView onSelectDate={handleSelectDateFromArchive} onClose={() => setShowArchive(false)} />;
+  }
+
   // --- Loading State ---
   if (!problem) {
     return (
         <div className="h-screen w-full bg-gray-950 flex flex-col items-center justify-center text-gray-400 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-            <span className="text-sm font-mono tracking-wide">Initializing Codele...</span>
+            <span className="text-sm font-mono tracking-wide">{isLoadingProblem ? 'Fetching from Archive...' : 'Initializing Codele...'}</span>
         </div>
     );
   }
@@ -534,9 +579,13 @@ const CodeleGame: React.FC = () => {
     <div className="flex flex-col h-screen w-full bg-gray-950 text-gray-200 overflow-hidden font-sans">
       <header className="flex-none h-14 border-b border-gray-800 bg-gray-900 flex items-center justify-between px-4 md:px-6 z-20">
         <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center shadow-lg">
-                 <Terminal className="w-5 h-5 text-white" />
-            </div>
+            <button 
+                onClick={() => setShowArchive(true)} 
+                className="group w-8 h-8 rounded bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+                title="Archive / Calendar"
+            >
+                 {showArchive ? <ChevronLeft className="w-5 h-5 text-white" /> : <LayoutGrid className="w-5 h-5 text-white" />}
+            </button>
             <h1 className="text-lg md:text-xl font-bold tracking-tight text-white hidden md:block">Codele</h1>
             <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">Daily Challenge</span>
         </div>

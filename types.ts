@@ -15,6 +15,21 @@ export interface DailyProblem {
   description: string;
   starterCode: string;
   testCases: TestCase[];
+  topics?: string[];
+}
+
+export interface WeeklyTheme {
+  theme: string;
+  startDate: string;
+  endDate: string;
+  count: number;
+  weekId?: string;
+}
+
+export interface CalendarDay {
+  date: string;
+  difficulty: Difficulty;
+  exists: boolean;
 }
 
 export type TestStatus = 'PASS' | 'FAIL' | 'WARN' | 'PENDING' | 'EMPTY' | 'ERROR';
