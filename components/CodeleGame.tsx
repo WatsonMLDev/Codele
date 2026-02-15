@@ -580,13 +580,27 @@ const CodeleGame: React.FC = () => {
             <LayoutGrid className="w-5 h-5 text-white" />
           </button>
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-white hidden md:block">Codele</h1>
-          {date && (
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">/</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-300 font-mono border border-gray-700">{date}</span>
-            </div>
-          )}
-          {!date && <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">Daily Challenge</span>}
+          {(() => {
+            const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const isToday = problem.id === todayStr;
+
+            return (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">/</span>
+                  {isToday ? (
+                    <span className="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">
+                      Daily Challenge
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
+                      Archived Problem
+                    </span>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Streak Indicator */}
