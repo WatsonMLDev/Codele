@@ -4,60 +4,59 @@ import { DailyProblem, WeeklyTheme, CalendarDay } from '../types';
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api/v1';
 
 const MOCK_PROBLEM: DailyProblem = {
-  "title": "Peak Performance Monitor",
-  "difficulty": "Hard",
-  "description": "Finding the maximum element in every sliding window of size k can be done in linear time using a monotonic queue. This data structure stores indices and ensures the elements are always in descending order.\n\nGiven an array nums and an integer k, return an array of the maximum values in each sliding window of size k.\n\nExample:\nInput: nums = [1,3,-1,-3,5,3,6,7], k = 3\nOutput: [3,3,5,5,6,7]\n\nExplanation: \nWindow [1,3,-1] -> max 3\nWindow [3,-1,-3] -> max 3\nWindow [-1,-3,5] -> max 5...",
-  "starterCode": "from collections import deque\n\nclass Solution:\n    def maxSlidingWindow(self, nums: list[int], k: int) -> list[int]:\n        \"\"\"\n        Finds the maximum in each sliding window of size k.\n        \"\"\"\n        pass",
+  "title": "Peak Mountain Finder",
+  "difficulty": "Medium",
+  "description": "Binary search is typically associated with sorted lists, but it also works on any function with a discernible trend. A peak element is an element that is strictly greater than its neighbors.\n\nGiven an integer array nums where adjacent elements are never equal, find the index of any peak element. Imagine that nums[-1] and nums[n] are negative infinity.\n\nExample:\nInput: nums = [1, 2, 3, 1]\nOutput: 2\n\nExplanation: 3 is a peak element and its index is 2.",
+  "starterCode": "def find_peak_element(nums: list[int]) -> int:\n    \"\"\"\n    Finds the index of a peak element in an unsorted array.\n    \"\"\"\n    pass",
   "testCases": [
     {
       "id": 1,
       "type": "basic",
-      "hint": "Use a deque to store indices of elements in descending order.",
-      "input": "[1, 3, -1, -3, 5, 3, 6, 7], 3",
-      "expected": "[3, 3, 5, 5, 6, 7]"
+      "hint": "If nums[mid] < nums[mid+1], a peak must exist to the right.",
+      "input": "[[1, 2, 3, 1]]",
+      "expected": "2"
     },
     {
       "id": 2,
-      "type": "edge",
-      "hint": "If k=1, the output is the original array.",
-      "input": "[1], 1",
-      "expected": "[1]"
+      "type": "logic",
+      "hint": "Check multiple peaks; any one is acceptable.",
+      "input": "[[1, 2, 1, 3, 5, 6, 4]]",
+      "expected": "5"
     },
     {
       "id": 3,
-      "type": "logic",
-      "hint": "Array sorted in descending order.",
-      "input": "[5, 4, 3, 2, 1], 2",
-      "expected": "[5, 4, 3, 2]"
+      "type": "edge",
+      "hint": "The peak can be the last element.",
+      "input": "[[1, 2]]",
+      "expected": "1"
     },
     {
       "id": 4,
-      "type": "logic",
-      "hint": "Array sorted in ascending order.",
-      "input": "[1, 2, 3, 4, 5], 3",
-      "expected": "[3, 4, 5]"
+      "type": "edge",
+      "hint": "The peak can be the first element.",
+      "input": "[[2, 1]]",
+      "expected": "0"
     },
     {
       "id": 5,
-      "type": "edge",
-      "hint": "Large window size equal to array length.",
-      "input": "[1, -1], 2",
-      "expected": "[1]"
+      "type": "logic",
+      "hint": "Strictly increasing arrays have the peak at the end.",
+      "input": "[[1, 2, 3, 4, 5]]",
+      "expected": "4"
     },
     {
       "id": 6,
       "type": "conciseness",
-      "hint": "Pop indices from the back of the deque if the new element is larger.",
-      "input": "Maximum lines for an O(N) monotonic queue solution.",
-      "expected": "18"
+      "hint": "Compare nums[mid] with nums[mid+1] to decide the search direction.",
+      "input": "Code length check",
+      "expected": "10"
     }
   ],
   "topics": [
-    "Sliding Window",
-    "Queue",
-    "Monotonic Queue"
+    "Binary Search",
+    "Array"
   ],
-  "id": "2026-02-21"
+  "id": "2026-02-15"
 };
 
 export const ProblemService = {
