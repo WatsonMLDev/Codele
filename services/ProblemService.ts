@@ -62,7 +62,8 @@ const MOCK_PROBLEM: DailyProblem = {
 export const ProblemService = {
   getDailyProblem: async (): Promise<DailyProblem> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/problem/today`);
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      const response = await fetch(`${API_BASE_URL}/problem/${todayStr}`);
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
       }
